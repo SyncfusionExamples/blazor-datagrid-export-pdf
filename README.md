@@ -3,6 +3,7 @@ A quick-start project that helps you how to export PDF in Blazor Datagrid Compon
 
 Online examples: https://blazor.syncfusion.com/demos/datagrid/exporting?theme=fluent
                  https://blazor.syncfusion.com/demos/datagrid/advanced-exporting?theme=fluent
+                 
 Documentation: https://blazor.syncfusion.com/documentation/datagrid/pdf-export
 
 # Project prerequisites
