@@ -1,0 +1,186 @@
+﻿@page "/"
+@using Syncfusion.Blazor.Buttons
+@using System.Drawing
+@using Syncfusion.PdfExport
+
+<div style="margin-bottom: 20px;">
+    <SfButton style="background-color: #007bff; color: white; padding: 10px 20px; border: none;" OnClick="PdfExport" Content="Pdf Export"></SfButton>
+</div>
+
+<SfGrid ID="Grid" @ref="DefaultGrid" DataSource="@Orders" Toolbar="@(new List<string>() { "PdfExport" })" 
+    AllowPdfExport="true" AllowPaging="true">
+    <GridEvents OnToolbarClick="ToolbarClickHandler" PdfHeaderQueryCellInfoEvent="PdfHeaderQueryCellInfoHandler"
+                TValue="Order"></GridEvents>
+    <GridColumns>
+        <GridColumn Field=@nameof(Order.OrderID) HeaderText="Order ID" TextAlign="TextAlign.Right" Width="120"/>
+        <GridColumn Field=@nameof(Order.CustomerID) HeaderText="Customer Name" Width="150"></GridColumn>
+        <GridColumn Field=@nameof(Order.OrderDate) HeaderText=" Order Date" Format="d" Type="ColumnType.Date" 
+                    TextAlign="TextAlign.Right" Width="130"></GridColumn>
+        <GridColumn Field=@nameof(Order.Freight) HeaderText="Freight" Format="C2"
+                    TextAlign="TextAlign.Right" Width="120"></GridColumn>
+    </GridColumns>
+</SfGrid>
+
+@code {
+    private SfGrid<Order>? DefaultGrid;
+    public List<Order>? Orders { get; set; }
+    List<string> headerValues = new List<string>();
+
+    public List<PdfHeaderFooterContent> HeaderContent = new List<PdfHeaderFooterContent>
+    {
+         //Add a text in header/footer
+        new PdfHeaderFooterContent() { Type = ContentType.Text, Value = "Northwind Traders", 
+        Position = new PdfPosition() { X = 0, Y = 50 },
+        Style = new PdfContentStyle() { TextBrushColor = "#000000", FontSize = 13 } },
+
+        // Draw a line in header/footer
+        new PdfHeaderFooterContent() { Type = ContentType.Line,
+        Points = new PdfPoints { X1 = 0, Y1 = 4, X2 = 685, Y2 = 4 },
+        Style = new PdfContentStyle() { PenColor = "#000080", DashStyle = Syncfusion.Blazor.Grids.PdfDashStyle.Solid}},
+        
+        //Add page number in header/footer
+        new PdfHeaderFooterContent() { Type = ContentType.PageNumber, PageNumberType = PdfPageNumberType.Arabic,
+            Position = new PdfPosition() { X = 0, Y = 25 }, 
+            Style = new PdfContentStyle() { TextBrushColor = "#0000ff", FontSize = 12, 
+            HAlign = PdfHorizontalAlign.Center } }
+    };
+
+    public async Task ToolbarClickHandler(Syncfusion.Blazor.Navigations.ClickEventArgs args)
+    {
+        //Id is combination of Grid's ID and itemname
+        if (args.Item.Id == "Grid_pdfexport" && DefaultGrid != null) 
+        {
+            PdfExportProperties exportProperties = new PdfExportProperties();
+
+            //File name for exported document
+            exportProperties.FileName = "test.pdf"; 
+
+            //Add a text in header/footer
+            PdfHeader Header = new PdfHeader() 
+            {
+                FromTop = 0,
+                Height = 130,
+                Contents = HeaderContent
+            };
+            exportProperties.Header = Header;
+
+            //change page orientation
+            exportProperties.PageOrientation = PageOrientation.Landscape;
+
+            //change page size
+            exportProperties.PageSize = Syncfusion.Blazor.Grids.PdfPageSize.Letter;
+
+            //Export current page
+            exportProperties.ExportType = ExportType.CurrentPage;
+
+            //Export hidden columns
+            exportProperties.IncludeHiddenColumn = true;
+
+            //Add repeat headers in PDF Export
+            exportProperties.IsRepeatHeader = true;
+
+            exportProperties.BeginCellLayout = new PdfGridBeginCellLayoutEventHandler(BeginCellEvent);
+            var selectedRecord = await DefaultGrid.GetSelectedRecordsAsync();
+
+            //Export the selected records only
+            if (selectedRecord.Count() > 0)
+            {
+                exportProperties.DataSource = selectedRecord;
+            }
+            else
+            {
+                exportProperties.DataSource = Orders;
+            }
+
+            //Theme
+            PdfTheme Theme = new PdfTheme();
+            PdfBorder HeaderBorder = new PdfBorder();
+            HeaderBorder.Color = "black";
+
+            PdfThemeStyle HeaderThemeStyle = new PdfThemeStyle()
+            {
+                FontColor = "Green",
+                FontName = "Calibri",
+                FontSize = 17,
+                Bold = true,
+                Border = HeaderBorder
+            };
+            Theme.Header = HeaderThemeStyle;
+
+            PdfThemeStyle RecordThemeStyle = new PdfThemeStyle()
+            {
+                FontColor = "blue",
+                FontName = "Calibri",
+                FontSize = 14
+
+            };
+            Theme.Record = RecordThemeStyle;
+
+            exportProperties.Theme = Theme;
+
+            await this.DefaultGrid.ExportToPdfAsync(exportProperties);
+        }
+    }
+
+    //Grid cell customization in PDF export
+    public void BeginCellEvent(object sender, PdfGridBeginCellLayoutEventArgs args)
+    {
+        PdfGrid grid = (PdfGrid)sender;
+        var brush = new Syncfusion.PdfExport.PdfSolidBrush(new Syncfusion.PdfExport.PdfColor(Color.DimGray));
+        args.Graphics.Save();
+        args.Graphics.TranslateTransform(args.Bounds.X + 50, args.Bounds.Height + 40);
+        args.Graphics.RotateTransform(-60);
+        // Draw the text at particular bounds.
+        args.Graphics.DrawString(headerValues[args.CellIndex], new Syncfusion.PdfExport.PdfStandardFont(Syncfusion.PdfExport.PdfFontFamily.Helvetica, 10), brush, new PointF(0, 0));
+        if (args.IsHeaderRow)
+        {
+            grid.Headers[0].Cells[args.CellIndex].Value = string.Empty;
+        }
+        args.Graphics.Restore();
+    }
+
+    //Customize column width in exported PDF document
+    public async Task PdfExport()
+    {
+        PdfExportProperties ExportProperties = new PdfExportProperties();
+        ExportProperties.DisableAutoFitWidth = true;
+        ExportProperties.Columns = new List<GridColumn>()
+        {
+                new GridColumn(){ Field="OrderID", HeaderText="Order ID", TextAlign=TextAlign.Left, Width="300"},
+                new GridColumn(){ Field="CustomerID", HeaderText="Customer Name", TextAlign=TextAlign.Left, Width="100"},
+                new GridColumn(){ Field="OrderDate", HeaderText=" Order Date", Type=ColumnType.Date, Format="d", TextAlign=TextAlign.Left, Width="80"}
+        };
+        await this.DefaultGrid.ExportToPdfAsync(ExportProperties);
+    }
+
+    protected override void OnInitialized()
+    {
+        Orders = Enumerable.Range(1, 75).Select(x => new Order()
+        {
+            OrderID = 1000 + x,
+            CustomerID = (new string[] { "ALFKI", "ANANTR", "ANTON", "BLONP", "BOLID" })
+            [new Random().Next(5)],
+            Freight = 2.1 * x,
+            OrderDate = DateTime.Now.AddDays(-x),
+        }).ToList();
+    }
+
+    //Grid cell customization in PDF export
+    public void PdfHeaderQueryCellInfoHandler(PdfHeaderQueryCellInfoEventArgs args)
+    {
+        headerValues.Add(args.Column.HeaderText);
+        var longestString = headerValues.Where(s => s.Length == headerValues.Max(m => m.Length)).
+                            First();
+        Syncfusion.PdfExport.PdfFont font = new Syncfusion.PdfExport.PdfStandardFont(Syncfusion.PdfExport.PdfFontFamily.Helvetica, 6);
+        SizeF size = font.MeasureString(longestString);
+        args.PdfGridColumn.Grid.Headers[0].Height = size.Width * 2;
+    }
+
+    public class Order
+    {
+        public int? OrderID { get; set; }
+        public string? CustomerID { get; set; }
+        public DateTime? OrderDate { get; set; }
+        public double? Freight { get; set; }
+    }
+}
